@@ -1,0 +1,8 @@
+.data
+.idea
+.DS_Store
+.vscode
+.TODO
+node_modules
+dist
+package-lock.json

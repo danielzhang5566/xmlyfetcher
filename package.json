@@ -1,0 +1,28 @@
+{
+  "name": "xmlyfetcher",
+  "version": "0.0.1",
+  "description": "",
+  "main": "xmlyfetcher.js",
+  "directories": {
+    "example": ""
+  },
+  "scripts": {},
+  "files": [
+    "xmlyfetcher.js"
+  ],
+  "bin": {
+    "xmlyfetcher": "xmlyfetcher.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:zeakhold/xmlyfetcher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {},
+  "dependencies": {
+    "axios": "^0.19.0",
+    "commander": "^3.0.2"
+  }
+}
