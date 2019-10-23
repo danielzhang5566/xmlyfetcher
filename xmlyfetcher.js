@@ -57,7 +57,7 @@ async function handleInputURL(url) {
 
         try {
             await fetchTrackIDsByPage(+albumID, +pageNum)
-            console.warn('\n【下载已全部完成！】\n')
+            console.warn(`【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】`)
         } catch (e) {
             console.warn(e)
             console.warn('\n【下载失败！】\n')
