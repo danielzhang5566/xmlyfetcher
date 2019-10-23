@@ -16,6 +16,7 @@ const { version } = require('./package.json')
 
 let URL // 命令行输入的URL
 let DIRECTORY_PATH // 命令行指定的下载输出路径
+let CONCURRENT_NUM // 并发下载音频的任务数量
 let downloadTaskQueue = {} // 下载任务队列 id: { id: 111, title: 'xxx', isFinished: false, downloadLink: '' }
 
 program
@@ -23,12 +24,14 @@ program
     .usage('+ 网页路径，可以直接从浏览器中复制')
     .description("xmlyfetcher|喜马拉雅音频下载器")
     .option('-o, --output <directory>', '指定下载音频输出目录', './')
-    // .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10)
+    .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 3) // 默认3个
+    // .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10) // 默认10s
     .parse(process.argv);
 
-console.log('==>输入参数：', process.argv, program.args, program.output, '\n')
+console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, '\n')
 URL = program.args[0]
 DIRECTORY_PATH = program.output
+CONCURRENT_NUM = program.concurrent
 process.chdir(DIRECTORY_PATH) // 改变Node.js进程的当前工作目录
 handleInputURL(URL)
 
@@ -186,24 +189,38 @@ async function fetchTrackIDsByPage(albumID, pageNum) {
         }
     })
 
-
     // console.warn('==>getTracksInfo.data:', getTracksInfo.data)
 
-    const { tracks } = getTracksInfo.data.data
+    let { tracks } = getTracksInfo.data.data
 
-    return Promise.all(tracks.map(item => {
-        let { trackId } = item
+    // 将当前页音频数组，按照并发任务数设置，进行拆分，串行执行。
+    let taskList = cutArray(tracks, CONCURRENT_NUM)
 
-        return fetchTrackByID(+trackId)
-    }))
-        .then(() => {
+    return new Promise(async (resolve, reject) => {
+        let isAllSuccess = true
+
+        // 执行划分好的子任务（通过await转同步，串行执行）
+        for(let i = 0; i < taskList.length; i++) {
+            await Promise.all(taskList[i].map(item => {
+                let { trackId } = item
+
+                return fetchTrackByID(+trackId)
+            }))
+                .catch(e => {
+                    isAllSuccess = false // 标记
+                    console.warn(`==>专辑【${albumID}】的第【${pageNum}】页的第【${i}】个子任务，执行失败`)
+                    return Promise.reject(e)
+                })
+        }
+
+        if (isAllSuccess) {
             console.warn(`==>专辑【${albumID}】的第【${pageNum}】页，已下载完成\n`)
-            return Promise.resolve()
-        })
-        .catch(e => {
-            console.warn(`==>专辑【${albumID}】的第【${pageNum}】页，下载失败`, e)
-            return Promise.reject(e)
-        })
+            resolve()
+        } else {
+            console.warn(`==>专辑【${albumID}】的第【${pageNum}】页，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            reject()
+        }
+    })
 }
 
 
@@ -234,6 +251,28 @@ function getUnfinishedTasks(queue) {
             result.push(queue[key])
         }
     }
+
+    return result
+}
+
+
+/**
+ * 将一个数组，进行分组
+ * 例如：输入cutArray([1,1,1,1], 3) 输出[[1,1,1], [1]]
+ *
+ * @param    { Array }   arr     原数组
+ * @param    { Number }  num     分组单位
+ *
+ * @return   { Array }
+ */
+function cutArray(arr, num) {
+    let result = []
+
+    while (arr.length > num) {
+        result.push(arr.splice(0, num))
+    }
+
+    result.push(arr) // 切到最后那一组
 
     return result
 }
