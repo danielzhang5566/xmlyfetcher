@@ -17,7 +17,8 @@ const { version } = require('./package.json')
 let URL // 命令行输入的URL
 let DIRECTORY_PATH // 命令行指定的下载输出路径
 let CONCURRENT_NUM // 并发下载音频的任务数量
-let downloadTaskQueue = {} // 下载任务队列 id: { id: 111, title: 'xxx', isFinished: false, downloadLink: '' }
+let TIMEOUT // 单个音频下载超时时间（秒）
+let downloadTaskQueue = {} // 下载任务队列 id: { id: 111, title: 'xxx', isFinished: false, isTimeout: false, downloadLink: '' }
 
 program
     .version(version)
@@ -25,13 +26,14 @@ program
     .description("xmlyfetcher|喜马拉雅音频下载器")
     .option('-o, --output <directory>', '指定下载音频输出目录', './')
     .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 3) // 默认3个
-    // .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10) // 默认10s
+    .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10) // 默认10s
     .parse(process.argv);
 
-console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, '\n')
+console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, program.timeout, '\n')
 URL = program.args[0]
 DIRECTORY_PATH = program.output
 CONCURRENT_NUM = program.concurrent
+TIMEOUT = program.timeout * 1000
 process.chdir(DIRECTORY_PATH) // 改变Node.js进程的当前工作目录
 handleInputURL(URL)
 
@@ -61,7 +63,7 @@ async function handleInputURL(url) {
             console.warn('\n【下载失败！】\n')
 
             // 终端提示失败的任务
-            console.warn('==>以下是下载失败的音频：\n')
+            console.warn('==>以下是下载失败的音频，您可以在浏览器打开链接地址手动下载：\n')
             // console.warn('==>downloadTaskQueue', downloadTaskQueue)
             let failedTasks = getUnfinishedTasks(downloadTaskQueue)
             failedTasks.forEach(item => {
@@ -73,7 +75,7 @@ async function handleInputURL(url) {
         let trackID = url.split(/\/[0-9]+\//g)[1]
 
         try {
-            await fetchTrackByID(+trackID)
+            await fetchTrackByID(+trackID, TIMEOUT)
             console.warn('\n【下载已全部完成！】\n')
         } catch (e) {
             console.warn(e)
@@ -83,20 +85,21 @@ async function handleInputURL(url) {
         console.warn('【请注意】输入不合法，请参阅说明：https://github.com/zeakhold/xmlyfetcher')
     }
 
-    // process.exit(0)
+    process.exit(0)
 }
 
 
 /**
  * 根据音频ID下载 音频
  *
- * @param    { Number }  id     音频ID
+ * @param    { Number }   id            音频ID
+ * @param    { Number }   timeout       "超时"时间
  *
  * @return   {PromiseLike<T | never>}
  */
-async function fetchTrackByID(id) {
+async function fetchTrackByID(id, timeout) {
     // 初次设置 下载任务队列
-    downloadTaskQueue[id] = { id, title: '', isFinished: false, downloadLink: '' }
+    downloadTaskQueue[id] = { id, title: '', isFinished: false, isTimeout: false, downloadLink: '' }
 
     let getTrackInfo, reader, writer
 
@@ -126,18 +129,18 @@ async function fetchTrackByID(id) {
     })
 
     // 更新 下载任务队列
-    downloadTaskQueue[id] = { id, title, isFinished: false, downloadLink: playUrl64 }
+    downloadTaskQueue[id] = { id, title, isFinished: false, isTimeout: false, downloadLink: playUrl64 }
 
     console.warn(`==>音频下载开始：《${title}》`)
 
-    // 下载音频流
+    // 建立【读取流】（下载音频流）
     reader = (await axios({
         method: 'get',
         url: playUrl64,
         responseType: 'stream'
     })).data
 
-    // 建立"写数据流"管道
+    // 建立【写入流】
     writer = fs.createWriteStream(`${albumTitle}/${title}.mp3`)
 
     // 【读取流】结束（随后会自动调用"【写入流】结束"）
@@ -145,7 +148,16 @@ async function fetchTrackByID(id) {
         // console.warn('==>end', downloadTaskQueue[id])
     })
 
-    // 存储音频到本地（往管道导流）
+    // 超时控制
+    setTimeout(() => {
+        if (!downloadTaskQueue[id].isFinished) {
+            downloadTaskQueue[id].isTimeout = true
+            reader.unpipe()     // 关闭【流管道】
+            writer.end()        // 结束【写入流】
+        }
+    }, timeout)
+
+    // 建立【流管道】（存储音频到本地）
     reader.pipe(writer)
 
     return new Promise((resolve, reject) => {
@@ -153,11 +165,16 @@ async function fetchTrackByID(id) {
         writer.on('finish', () => {
             // console.warn('==>finish', downloadTaskQueue[id])
 
-            // 更新 下载任务队列
-            downloadTaskQueue[id].isFinished = true
-            console.warn(`==>音频下载完成：《${title}》`)
+            if (downloadTaskQueue[id].isTimeout) {
+                console.warn(`\n==>音频下载超时：《${title}》，您可以在浏览器打开链接地址手动下载：${downloadTaskQueue[id].downloadLink}\n`)
+                reject()
+            } else {
+                // 更新 下载任务队列
+                downloadTaskQueue[id].isFinished = true
+                console.warn(`==>音频下载完成：《${title}》`)
 
-            resolve()
+                resolve()
+            }
         })
 
         writer.on('error', (e) => {
@@ -177,7 +194,7 @@ async function fetchTrackByID(id) {
  * @return   {PromiseLike<T | never>}
  */
 async function fetchTrackIDsByPage(albumID, pageNum) {
-    console.warn(`==>开始解析专辑【${albumID}】的第【${pageNum}】页`)
+    console.warn(`\n==>开始解析专辑【${albumID}】的第【${pageNum}】页\n`)
 
     // 获取当前页所有音频ID
     let getTracksInfo = await axios({
@@ -204,20 +221,19 @@ async function fetchTrackIDsByPage(albumID, pageNum) {
             await Promise.all(taskList[i].map(item => {
                 let { trackId } = item
 
-                return fetchTrackByID(+trackId)
+                return fetchTrackByID(+trackId, CONCURRENT_NUM * TIMEOUT) // 注意这里的超时时间，需要设置为单个子任务总时间
             }))
                 .catch(e => {
                     isAllSuccess = false // 标记
                     console.warn(`==>专辑【${albumID}】的第【${pageNum}】页的第【${i}】个子任务，执行失败`)
-                    return Promise.reject(e)
                 })
         }
 
         if (isAllSuccess) {
-            console.warn(`==>专辑【${albumID}】的第【${pageNum}】页，已下载完成\n`)
+            console.warn(`\n==>专辑【${albumID}】的第【${pageNum}】页，已下载完成\n`)
             resolve()
         } else {
-            console.warn(`==>专辑【${albumID}】的第【${pageNum}】页，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            console.warn(`\n==>专辑【${albumID}】的第【${pageNum}】页，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
             reject()
         }
     })
