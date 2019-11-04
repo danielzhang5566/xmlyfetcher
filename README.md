@@ -13,7 +13,7 @@ Usage: xmlyfetcher [url]
 
 ```bash
 # 下载专辑
-xmlyfetcher https://www.ximalaya.com/ertong/23701961/
+xmlyfetcher https://www.ximalaya.com/ertong/10078066/
 
 # 下载专辑单页
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/p2/
@@ -30,6 +30,9 @@ xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643 -t 20
 
 PS: 可以使用`xmlyfetcher -h`查看更详细的帮助
 
+
+## TODO
+- 听说`Generator` + node自带的`repl`库，是写爬虫的完美配置？
 
 
 ## 许可

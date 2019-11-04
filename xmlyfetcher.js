@@ -4,7 +4,7 @@
  * @file 喜马拉雅音频下载器
  * @author zeakhold
  * @description 本工具用于下载ximalaya.com.上的音频，支持以下三种形式的URL：
- *      1. https://www.ximalaya.com/ertong/23701961/                下载整个专辑
+ *      1. https://www.ximalaya.com/ertong/10078066/               下载整个专辑
  *      2. https://www.ximalaya.com/ertong/12891461/p2/             下载第二页
  *      3. https://www.ximalaya.com/ertong/12891461/211393643       下载单个音频
  */
@@ -49,14 +49,22 @@ async function handleInputURL(url) {
     url = url.trim()
 
     // 使用正则区分出三种不同的URL格式
-    if (/[a-z]+\/[0-9]+\/?$/g.test(url)) { // 1. https://www.ximalaya.com/ertong/23701961/ 下载整个专辑
-
-    } else if (/[a-z]+\/[0-9]+\/p[0-9]+\/?$/g.test(url)) { // 2. https://www.ximalaya.com/ertong/12891461/p2/        下载第二页
-        let albumID = url.split('/')[4]
-        let pageNum = url.split('/')[5].slice(1)
+    if (/[a-z]+\/[0-9]+\/?$/g.test(url)) { // 1. 下载整个专辑 https://www.ximalaya.com/jiaoyu/19304542/
+        let albumID = +url.split('/')[4]
 
         try {
-            await fetchTrackIDsByPage(+albumID, +pageNum)
+            await fetchTrackByAlbum(albumID)
+            console.warn(`【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】`)
+        } catch (e) {
+            console.warn(e)
+            console.warn('\n【下载失败！】\n')
+        }
+    } else if (/[a-z]+\/[0-9]+\/p[0-9]+\/?$/g.test(url)) { // 2. 下载第n页 https://www.ximalaya.com/ertong/12891461/p2/
+        let albumID = +url.split('/')[4]
+        let pageNum = +url.split('/')[5].slice(1)
+
+        try {
+            await fetchTrackByPage(albumID, pageNum)
             console.warn(`【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】`)
         } catch (e) {
             console.warn(e)
@@ -71,12 +79,12 @@ async function handleInputURL(url) {
             })
 
         }
-    } else if (/[a-z]+\/[0-9]+\/[0-9]+\/?$/g.test(url)) { // 3. https://www.ximalaya.com/ertong/12891461/211393643   下载单个音频
-        let trackID = url.split(/\/[0-9]+\//g)[1]
+    } else if (/[a-z]+\/[0-9]+\/[0-9]+\/?$/g.test(url)) { // 3. 下载单个音频 https://www.ximalaya.com/ertong/12891461/211393643
+        let trackID = +url.split(/\/[0-9]+\//g)[1]
 
         try {
-            await fetchTrackByID(+trackID, TIMEOUT)
-            console.warn('\n【下载已全部完成！】\n')
+            await fetchTrackByID(trackID, TIMEOUT)
+            console.warn('\n【总共1个音频，下载已完成！】\n')
         } catch (e) {
             console.warn(e)
             console.warn('\n【下载失败！】\n')
@@ -186,14 +194,14 @@ async function fetchTrackByID(id, timeout) {
 
 
 /**
- * 根据专辑ID和页面UD获取 当前页面音频的IDs
+ * 根据专辑ID和页面UD下载 当前页面所有音频
  *
  * @param    { Number }  albumID     专辑ID
  * @param    { Number }  pageNum     当前页数
  *
  * @return   {PromiseLike<T | never>}
  */
-async function fetchTrackIDsByPage(albumID, pageNum) {
+async function fetchTrackByPage(albumID, pageNum) {
     console.warn(`\n==>开始解析专辑【${albumID}】的第【${pageNum}】页\n`)
 
     // 获取当前页所有音频ID
@@ -203,6 +211,7 @@ async function fetchTrackIDsByPage(albumID, pageNum) {
         params: {
             albumId: albumID,
             pageNum,
+            // pageSize: 30 // 喜马拉雅每个页面默认是30个音频
         }
     })
 
@@ -241,14 +250,47 @@ async function fetchTrackIDsByPage(albumID, pageNum) {
 
 
 /**
- * 根据专辑ID下获取 整个专辑的音频的IDs
+ * 根据专辑ID下获取 整个专辑的音频
  *
- * @param    { Number }  id     音频ID
+ * @param    { Number }  albumID     音频ID
  *
  * @return   {PromiseLike<T | never>}
  */
-async function fetchTrackIDsByAlbum(id) {
+async function fetchTrackByAlbum(albumID) {
+    console.warn(`\n==>开始解析专辑【${albumID}】\n`)
 
+    // 获取当前页所有音频ID
+    let getTracksInfo = await axios({
+        method: 'get',
+        url: 'http://www.ximalaya.com/revision/album',
+        params: {
+            albumId: albumID,
+        }
+    })
+
+    // console.warn('==>getTracksInfo.data:', getTracksInfo.data)
+
+    let { mainInfo, tracksInfo } = getTracksInfo.data.data
+    let { albumTitle } = mainInfo
+    let { pageSize, trackTotalCount } = tracksInfo || {} // pageSize 为每一个页面音频数量，默认为30；trackTotalCount是整个专辑音频总数
+    let totalPageNum = Math.ceil(trackTotalCount / pageSize) // 整个专辑有多少页
+
+    return new Promise(async (resolve, reject) => {
+        let isAllSuccess = true
+
+        // 拆分为一页页，然后先后调用fetchTrackByPage下载
+        for (let i = 1; i <= totalPageNum; i++) {
+            await fetchTrackByPage(albumID, i)
+        }
+
+        if (isAllSuccess) {
+            console.warn(`\n==>专辑《${albumTitle}》，已下载完成\n`)
+            resolve()
+        } else {
+            console.warn(`\n==>专辑《${albumTitle}》，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            reject()
+        }
+    })
 }
 
 
