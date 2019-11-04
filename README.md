@@ -34,4 +34,4 @@ PS: 可以使用`xmlyfetcher -h`查看更详细的帮助
 
 ## 许可
 
-该开源工具具有MIT许可协议. 本工具仅限个人学习，不用于商业等用途. 所涉及的音视频资源版权归喜马拉雅所有.
+该开源工具具有[MIT许可协议](https://github.com/zeakhold/xmlyfetcher/blob/master/LICENSE). 本工具仅限个人学习，不用于商业等用途. 所涉及的音视频资源版权归喜马拉雅所有.
