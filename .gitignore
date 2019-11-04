@@ -2,7 +2,7 @@
 .idea
 .DS_Store
 .vscode
-.TODO
+TODO
 node_modules
 dist
 package-lock.json

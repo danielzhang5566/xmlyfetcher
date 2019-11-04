@@ -4,7 +4,7 @@
  * @file 喜马拉雅音频下载器
  * @author zeakhold
  * @description 本工具用于下载ximalaya.com.上的音频，支持以下三种形式的URL：
- *      1. https://www.ximalaya.com/ertong/12891461/                下载整个专辑
+ *      1. https://www.ximalaya.com/ertong/23701961/                下载整个专辑
  *      2. https://www.ximalaya.com/ertong/12891461/p2/             下载第二页
  *      3. https://www.ximalaya.com/ertong/12891461/211393643       下载单个音频
  */
@@ -22,7 +22,7 @@ let downloadTaskQueue = {} // 下载任务队列 id: { id: 111, title: 'xxx', is
 
 program
     .version(version)
-    .usage('+ 网页路径，可以直接从浏览器中复制')
+    .usage('[url]')
     .description("xmlyfetcher|喜马拉雅音频下载器")
     .option('-o, --output <directory>', '指定下载音频输出目录', './')
     .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 3) // 默认3个
@@ -49,7 +49,7 @@ async function handleInputURL(url) {
     url = url.trim()
 
     // 使用正则区分出三种不同的URL格式
-    if (/[a-z]+\/[0-9]+\/?$/g.test(url)) { // 1. https://www.ximalaya.com/ertong/12891461/  下载整个专辑
+    if (/[a-z]+\/[0-9]+\/?$/g.test(url)) { // 1. https://www.ximalaya.com/ertong/23701961/ 下载整个专辑
 
     } else if (/[a-z]+\/[0-9]+\/p[0-9]+\/?$/g.test(url)) { // 2. https://www.ximalaya.com/ertong/12891461/p2/        下载第二页
         let albumID = url.split('/')[4]
@@ -166,7 +166,7 @@ async function fetchTrackByID(id, timeout) {
             // console.warn('==>finish', downloadTaskQueue[id])
 
             if (downloadTaskQueue[id].isTimeout) {
-                console.warn(`\n==>音频下载超时：《${title}》，您可以在浏览器打开链接地址手动下载：${downloadTaskQueue[id].downloadLink}\n`)
+                console.warn(`\n==>音频下载超时：《${title}》，您可以通过-t参数提高超时时间，也可以在浏览器打开链接地址手动下载：${downloadTaskQueue[id].downloadLink}\n`)
                 reject()
             } else {
                 // 更新 下载任务队列
