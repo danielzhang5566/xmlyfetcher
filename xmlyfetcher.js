@@ -18,7 +18,7 @@ let URL // 命令行输入的URL
 let DIRECTORY_PATH // 命令行指定的下载输出路径
 let CONCURRENT_NUM // 并发下载音频的任务数量
 let TIMEOUT // 单个音频下载超时时间（秒）
-let downloadTaskQueue = {} // 下载任务队列 id: { id: 111, title: 'xxx', isFinished: false, isTimeout: false, downloadLink: '' }
+let downloadTaskQueue = {} // 下载任务队列 { id: { id: 111, title: 'xxx', isFinished: false, isTimeout: false, downloadLink: '' } }
 
 program
     .version(version)
@@ -301,7 +301,7 @@ function getUnfinishedTasks(queue) {
     let result = []
 
     for(let key in queue){
-        if (!queue[key].finished || queue[key].timeout) {
+        if (!queue[key].isFinished) {
             result.push(queue[key])
         }
     }
