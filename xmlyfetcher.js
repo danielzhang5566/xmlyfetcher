@@ -26,7 +26,7 @@ program
     .description("xmlyfetcher|喜马拉雅音频下载器")
     .option('-o, --output <directory>', '指定下载音频输出目录', './')
     .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 5) // 默认5个
-    .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10) // 默认10s
+    .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 8) // 默认8s
     .parse(process.argv);
 
 console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, program.timeout, '\n')
@@ -54,10 +54,28 @@ async function handleInputURL(url) {
 
         try {
             await fetchTrackByAlbum(albumID)
-            console.warn(`【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】`)
+            console.warn(`\n【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】\n`)
         } catch (e) {
-            console.warn(e)
-            console.warn('\n【下载失败！】\n')
+            // console.warn(e)
+            // console.warn('==>downloadTaskQueue', downloadTaskQueue)
+
+            let failedTasks = getUnfinishedTasks(downloadTaskQueue)
+
+            try {
+                // 重新尝试下载失败的任务
+                await retryFailedTasks(failedTasks)
+                console.warn(`\n【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】\n`)
+            } catch (e) {
+                console.warn(e)
+                console.warn('\n【下载失败！】\n')
+
+                // 最终提示失败的任务
+                console.warn('==>以下是最终下载失败的音频，您可以在浏览器打开链接地址手动下载：\n')
+                failedTasks = getUnfinishedTasks(downloadTaskQueue)
+                failedTasks.forEach(item => {
+                    console.warn(`《${item.title}》 ： ${item.downloadLink}`)
+                })
+            }
         }
     } else if (/[a-z]+\/[0-9]+\/p[0-9]+\/?$/g.test(url)) { // 2. 下载第n页 https://www.ximalaya.com/ertong/12891461/p2/
         let albumID = +url.split('/')[4]
@@ -65,19 +83,28 @@ async function handleInputURL(url) {
 
         try {
             await fetchTrackByPage(albumID, pageNum)
-            console.warn(`【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】`)
+            console.warn(`\n【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】\n`)
         } catch (e) {
-            console.warn(e)
-            console.warn('\n【下载失败！】\n')
-
-            // 终端提示失败的任务
-            console.warn('==>以下是下载失败的音频，您可以在浏览器打开链接地址手动下载：\n')
+            // console.warn(e)
             // console.warn('==>downloadTaskQueue', downloadTaskQueue)
-            let failedTasks = getUnfinishedTasks(downloadTaskQueue)
-            failedTasks.forEach(item => {
-                console.warn(`${item.title} ： ${item.downloadLink}`)
-            })
 
+            let failedTasks = getUnfinishedTasks(downloadTaskQueue)
+
+            try {
+                // 重新尝试下载失败的任务
+                await retryFailedTasks(failedTasks)
+                console.warn(`\n【总共${Object.keys(downloadTaskQueue).length}个音频，已全部下载完成！】\n`)
+            } catch (e) {
+                console.warn(e)
+                console.warn('\n【下载失败！】\n')
+
+                // 最终提示失败的任务
+                console.warn('==>以下是最终下载失败的音频，您可以在浏览器打开链接地址手动下载：\n')
+                failedTasks = getUnfinishedTasks(downloadTaskQueue)
+                failedTasks.forEach(item => {
+                    console.warn(`《${item.title}》 ： ${item.downloadLink}`)
+                })
+            }
         }
     } else if (/[a-z]+\/[0-9]+\/[0-9]+\/?$/g.test(url)) { // 3. 下载单个音频 https://www.ximalaya.com/ertong/12891461/211393643
         let trackID = +url.split(/\/[0-9]+\//g)[1]
@@ -100,12 +127,13 @@ async function handleInputURL(url) {
 /**
  * 根据音频ID下载 音频
  *
- * @param    { Number }   id            音频ID
- * @param    { Number }   timeout       "超时"时间
+ * @param    { Number }    id            音频ID
+ * @param    { Number }    timeout       "超时"时间
+ * @param    { Boolean }   isRetry       是否重试的下载
  *
  * @return   {PromiseLike<T | never>}
  */
-async function fetchTrackByID(id, timeout) {
+async function fetchTrackByID(id, timeout, isRetry = false) {
     // 初次设置 下载任务队列
     downloadTaskQueue[id] = { id, title: '', isFinished: false, isTimeout: false, downloadLink: '' }
 
@@ -170,7 +198,8 @@ async function fetchTrackByID(id, timeout) {
             // console.warn('==>finish', downloadTaskQueue[id])
 
             if (downloadTaskQueue[id].isTimeout) {
-                console.warn(`\n==>音频下载超时：《${title}》，您可以通过-t参数提高超时时间，也可以在浏览器打开链接地址手动下载：${downloadTaskQueue[id].downloadLink}\n`)
+                !isRetry && console.warn(`\n==>音频《${title}》下载超时，先挂起，后面会重新尝试下载（您也可以通过-t参数提高超时限制时间）。\n`)
+                // console.warn(`\n==>音频下载超时：《${title}》，您可以通过-t参数提高超时时间，也可以在浏览器打开链接地址手动下载：${downloadTaskQueue[id].downloadLink}\n`)
                 reject()
             } else {
                 // 更新 下载任务队列
@@ -230,7 +259,7 @@ async function fetchTrackByPage(albumID, pageNum) {
             }))
                 .catch(e => {
                     isAllSuccess = false // 标记
-                    console.warn(`==>专辑【${albumID}】的第【${pageNum}】页的第【${i}】个子任务，执行失败`)
+                    // console.warn(`==>专辑【${albumID}】的第【${pageNum}】页的第【${i}】个子任务，执行失败`)
                 })
         }
 
@@ -238,7 +267,7 @@ async function fetchTrackByPage(albumID, pageNum) {
             console.warn(`\n==>专辑【${albumID}】的第【${pageNum}】页，已下载完成\n`)
             resolve()
         } else {
-            console.warn(`\n==>专辑【${albumID}】的第【${pageNum}】页，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            console.warn(`\n==>专辑【${albumID}】的第【${pageNum}】页，未能完全下载\n`)
             reject()
         }
     })
@@ -288,6 +317,47 @@ async function fetchTrackByAlbum(albumID) {
         }
     })
 }
+
+
+/**
+ * 重试下载失败的任务
+ *
+ * @param    { Array }  failedTasks     失败的任务数组
+ *
+ * @return   {PromiseLike<T | never>}
+ */
+async function retryFailedTasks(failedTasks) {
+    console.warn(`\n\n==>开始重试前面下载失败的任务：${failedTasks.map(item => `《${item.title}》`).join('、')}\n`)
+
+    // 将当前页音频数组，按照并发任务数设置，进行拆分，串行执行。
+    let taskList = cutArray(failedTasks, CONCURRENT_NUM)
+
+    return new Promise(async (resolve, reject) => {
+        let isAllSuccess = true
+
+        // 执行划分好的子任务（通过await转同步，串行执行）
+        for(let i = 0; i < taskList.length; i++) {
+            await Promise.all(taskList[i].map(item => {
+                let { id } = item
+
+                // 超时上限调整为原先的2倍
+                return fetchTrackByID(+id, 2 * CONCURRENT_NUM * TIMEOUT, true) // 注意这里的超时时间，需要设置为单个子任务总时间
+            }))
+                .catch(e => {
+                    isAllSuccess = false // 标记
+                    // console.warn(`==>专辑【${albumID}】的第【${pageNum}】页的第【${i}】个子任务，执行失败`)
+                })
+        }
+
+        if (isAllSuccess) {
+            console.warn(`\n==>失败任务全部重新下载成功！\n`)
+            resolve()
+        } else {
+            reject()
+        }
+    })
+}
+
 
 
 /**
