@@ -1,11 +1,19 @@
 # xmlyfetcher
 
-> 该工具用于下载喜马拉雅歌曲资源，可以下载单个音频资源，也可以下载整个专辑. 喜欢的请打个红心!!!
+> 该工具用于下载喜马拉雅歌曲资源. 喜欢请打个Star！
 
 ## 安装
 ```
 npm install -g xmlyfetcher
 ```
+
+## 功能
+- [x]支持下载 单个音频、某个页面的音频、整个专辑
+- [x]支持并发下载
+- [x]超时控制
+- [x]下载失败任务统计，最后重试1次
+- [ ]根据音频长度，动态计算超时时间
+- [ ]支持指定页数范围的下载
 
 
 ## 使用
@@ -24,7 +32,7 @@ xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643
 # 下载到指定目录
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643 -o ~/Downloads
 
-# 指定下载单个音频的超时时间（默认10s）
+# 指定下载单个音频的超时时间（默认8s）
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643 -t 20
 ```
 
