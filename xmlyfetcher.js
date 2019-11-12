@@ -296,7 +296,7 @@ async function fetchTrackByAlbum(albumID) {
     // console.warn('==>getTracksInfo.data:', getTracksInfo.data)
 
     let { mainInfo, tracksInfo } = getTracksInfo.data.data
-    let { album_title } = mainInfo
+    let { albumTitle } = mainInfo
     let { pageSize, trackTotalCount } = tracksInfo || {} // pageSize 为每一个页面音频数量，默认为30；trackTotalCount是整个专辑音频总数
     let totalPageNum = Math.ceil(trackTotalCount / pageSize) // 整个专辑有多少页
 
@@ -309,10 +309,10 @@ async function fetchTrackByAlbum(albumID) {
         }
 
         if (isAllSuccess) {
-            console.warn(`\n==>专辑《${album_title}》，已下载完成\n`)
+            console.warn(`\n==>专辑《${albumTitle}》，已下载完成\n`)
             resolve()
         } else {
-            console.warn(`\n==>专辑《${album_title}》，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            console.warn(`\n==>专辑《${albumTitle}》，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
             reject()
         }
     })
