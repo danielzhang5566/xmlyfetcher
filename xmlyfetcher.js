@@ -25,7 +25,7 @@ program
     .usage('[url]')
     .description("xmlyfetcher|喜马拉雅音频下载器")
     .option('-o, --output <directory>', '指定下载音频输出目录', './')
-    .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 3) // 默认3个
+    .option('-c, --concurrent <directory>', '并发下载音频的任务数量', 5) // 默认5个
     .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 10) // 默认10s
     .parse(process.argv);
 
