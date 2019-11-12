@@ -114,20 +114,16 @@ async function fetchTrackByID(id, timeout) {
     // 获取音频信息
     getTrackInfo = await axios({
         method: 'get',
-        url: 'http://mobile.ximalaya.com/v1/track/baseInfo',
-        params: {
-            device: 'iPhone',
-            trackId: id
-        }
+        url: `http://www.ximalaya.com/tracks/${id}.json`,
     })
 
     // console.warn('==>getTrackInfo.data:', getTrackInfo.data)
 
-    let { title, playUrl64, albumTitle } = getTrackInfo.data
+    let { title, play_path_64, album_title } = getTrackInfo.data
 
     // 尝试创建专辑文件夹（改造成同步）
     await new Promise((resolve, reject) => {
-        fs.mkdir(albumTitle, (err) => {
+        fs.mkdir(album_title, (err) => {
             if (err && err.code !== 'EEXIST') {
                 // 不是【文件夹已存在】情况
                 reject(err)
@@ -137,19 +133,19 @@ async function fetchTrackByID(id, timeout) {
     })
 
     // 更新 下载任务队列
-    downloadTaskQueue[id] = { id, title, isFinished: false, isTimeout: false, downloadLink: playUrl64 }
+    downloadTaskQueue[id] = { id, title, isFinished: false, isTimeout: false, downloadLink: play_path_64 }
 
-    console.warn(`==>音频下载开始：《${title}》`)
+    console.warn(`==>音频下载开始<：《${title}》`)
 
     // 建立【读取流】（下载音频流）
     reader = (await axios({
         method: 'get',
-        url: playUrl64,
+        url: play_path_64,
         responseType: 'stream'
     })).data
 
     // 建立【写入流】
-    writer = fs.createWriteStream(`${albumTitle}/${title}.mp3`)
+    writer = fs.createWriteStream(`${album_title}/${title}.mp3`)
 
     // 【读取流】结束（随后会自动调用"【写入流】结束"）
     reader.on('end', () => {
@@ -179,7 +175,7 @@ async function fetchTrackByID(id, timeout) {
             } else {
                 // 更新 下载任务队列
                 downloadTaskQueue[id].isFinished = true
-                console.warn(`==>音频下载完成：《${title}》`)
+                console.warn(`==>音频下载完成>：《${title}》`)
 
                 resolve()
             }
@@ -271,7 +267,7 @@ async function fetchTrackByAlbum(albumID) {
     // console.warn('==>getTracksInfo.data:', getTracksInfo.data)
 
     let { mainInfo, tracksInfo } = getTracksInfo.data.data
-    let { albumTitle } = mainInfo
+    let { album_title } = mainInfo
     let { pageSize, trackTotalCount } = tracksInfo || {} // pageSize 为每一个页面音频数量，默认为30；trackTotalCount是整个专辑音频总数
     let totalPageNum = Math.ceil(trackTotalCount / pageSize) // 整个专辑有多少页
 
@@ -284,10 +280,10 @@ async function fetchTrackByAlbum(albumID) {
         }
 
         if (isAllSuccess) {
-            console.warn(`\n==>专辑《${albumTitle}》，已下载完成\n`)
+            console.warn(`\n==>专辑《${album_title}》，已下载完成\n`)
             resolve()
         } else {
-            console.warn(`\n==>专辑《${albumTitle}》，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
+            console.warn(`\n==>专辑《${album_title}》，未能完全下载，请找到下载失败音频的提示链接，手动下载～`)
             reject()
         }
     })
