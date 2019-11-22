@@ -1,4 +1,4 @@
-# xmlyfetcher
+# xmlyfetcher &middot; [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/zeakhold/xmlyfetcher/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/xmlyfetcher.svg?style=flat)](https://www.npmjs.com/package/xmlyfetcher) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/zeakhold/xmlyfetcher/compare?expand=1)
 
 > 该工具用于下载喜马拉雅歌曲资源. 喜欢请打个Star！
 
