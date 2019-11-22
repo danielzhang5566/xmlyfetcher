@@ -163,7 +163,7 @@ async function fetchTrackByID(id, timeout, isRetry = false) {
     // 更新 下载任务队列
     downloadTaskQueue[id] = { id, title, isFinished: false, isTimeout: false, downloadLink: play_path_64 }
 
-    console.warn(`==>音频下载开始<：《${title}》`)
+    console.warn(`==>音频下载开始➜ ：《${title}》`)
 
     // 建立【读取流】（下载音频流）
     reader = (await axios({
@@ -204,7 +204,7 @@ async function fetchTrackByID(id, timeout, isRetry = false) {
             } else {
                 // 更新 下载任务队列
                 downloadTaskQueue[id].isFinished = true
-                console.warn(`==>音频下载完成>：《${title}》`)
+                console.warn(`==>音频下载完成✔ ：《${title}》`)
 
                 resolve()
             }
@@ -305,7 +305,11 @@ async function fetchTrackByAlbum(albumID) {
 
         // 拆分为一页页，然后先后调用fetchTrackByPage下载
         for (let i = 1; i <= totalPageNum; i++) {
-            await fetchTrackByPage(albumID, i)
+            try {
+                await fetchTrackByPage(albumID, i)
+            } catch (e) {
+                continue
+            }
         }
 
         if (isAllSuccess) {
