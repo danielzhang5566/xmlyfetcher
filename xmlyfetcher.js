@@ -29,7 +29,7 @@ program
     .option('-t, --timeout <directory>', '单个音频下载超时时间（秒）', 8) // 默认8s
     .parse(process.argv);
 
-console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, program.timeout, '\n')
+// console.log('==>输入参数：', process.argv, program.args, program.output, program.concurrent, program.timeout, '\n')
 URL = program.args[0]
 DIRECTORY_PATH = program.output
 CONCURRENT_NUM = program.concurrent
