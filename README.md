@@ -9,9 +9,11 @@ npm install -g xmlyfetcher
 
 ## 功能
 - [x] 支持下载 单个音频、某个页面的音频、整个专辑
+- [x] 指定下载输出目录
 - [x] 支持并发下载
 - [x] 超时控制
-- [x] 下载失败任务统计，最后重试1次
+- [x] 终端提示下载状态：当前下载音频、成功/失败提示等
+- [x] 下载失败子任务挂起，最后统一重试1次
 - [ ] 根据音频长度，动态计算超时时间
 - [ ] 支持指定页数范围的下载
 
@@ -39,10 +41,6 @@ xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643 -t 20
 PS: 可以使用`xmlyfetcher -h`查看更详细的帮助
 
 
-## TODO
-- 听说`Generator` + node自带的`repl`库，是写爬虫的完美配置？
-
-
 ## 许可
 
-该开源工具具有[MIT许可协议](https://github.com/zeakhold/xmlyfetcher/blob/master/LICENSE). 本工具仅限个人学习，不用于商业等用途. 所涉及的音视频资源版权归喜马拉雅所有.
+该开源工具基于[MIT许可协议](https://github.com/zeakhold/xmlyfetcher/blob/master/LICENSE)，仅限个人学习，不用于商业等用途。所涉及的音视频资源版权归喜马拉雅所有。

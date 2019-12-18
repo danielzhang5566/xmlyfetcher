@@ -1,6 +1,6 @@
 /**
  * @file 喜马拉雅 API
- * @author zhangzhihao10
+ * @author zeakhold
  */
 
 module.exports = {
